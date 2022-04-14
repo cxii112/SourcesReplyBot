@@ -1,12 +1,15 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using SourcesReplyBot.Bot;
 using SourcesReplyBot.Models;
 using Telegram.Bot;
 using Telegram.Bot.Exceptions;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
-using static SourcesReplyBot.Bot.BotActions;
+using static SourcesReplyBot.Bot.Bot;
 
 namespace SourcesReplyBot.Services
 {
@@ -45,15 +48,26 @@ namespace SourcesReplyBot.Services
         {
             _logger.LogInformation($"{DateTime.Now} [MESSAGE] {message.Type} by {message.From.Username}");
             if (message.Type != MessageType.Text) return;
-            var action = message.Text!.Split(" ")[0] switch
+            string key = message.Text!.Split(" ")[0].Replace("/", "");
+            // string commandCommand = Actions[key].Command.Command;
+            // var action = key switch
+            // {
+            //     "/start" => Usage(_botClient, message),
+            //     "/usage" => Usage(_botClient, message),
+            //     _ => {
+            //     Actions[key].Action(_botClient, message, _context, _logger)
+            // }
+            // };
+            try
             {
-                "/start" => Start(_botClient, message),
-                "/usage" => Usage(_botClient, message),
-                "/get" => Get(_botClient, message, _context, _logger),
-                _ => Default(_botClient, message)
-            };
-            Message sentMessage = await action;
-            _logger.LogInformation($"{DateTime.Now} Message {sentMessage.MessageId} sent");
+                var action = Actions[key].Action(_botClient, message, _context, _logger);
+                Message sentMessage = await action;
+                _logger.LogInformation($"{DateTime.Now} Message {sentMessage.MessageId} sent");
+            }
+            catch (KeyNotFoundException)
+            {
+                await Default.Action(_botClient, message);
+            }
         }
 
 
