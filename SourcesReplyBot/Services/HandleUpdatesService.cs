@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using SourcesReplyBot.Models;
 using Telegram.Bot;
 using Telegram.Bot.Exceptions;
 using Telegram.Bot.Types;
@@ -13,11 +14,14 @@ namespace SourcesReplyBot.Services
     {
         private readonly ITelegramBotClient _botClient;
         private readonly ILogger<HandleUpdatesService> _logger;
+        private readonly SourcesContext _context;
 
-        public HandleUpdatesService(ITelegramBotClient botClient, ILogger<HandleUpdatesService> logger)
+        public HandleUpdatesService(ITelegramBotClient            botClient,
+                                    ILogger<HandleUpdatesService> logger)
         {
             _botClient = botClient;
             _logger = logger;
+            _context = new SourcesContext();
         }
 
         public async Task EchoAsync(Update update)
@@ -41,10 +45,11 @@ namespace SourcesReplyBot.Services
         {
             _logger.LogInformation($"{DateTime.Now} [MESSAGE] {message.Type} by {message.From.Username}");
             if (message.Type != MessageType.Text) return;
-            var action  = message.Text!.Split(" ")[0] switch
+            var action = message.Text!.Split(" ")[0] switch
             {
                 "/start" => Start(_botClient, message),
-                "/usage" => Usage(_botClient,message),
+                "/usage" => Usage(_botClient, message),
+                "/get" => Get(_botClient, message, _context, _logger),
                 _ => Default(_botClient, message)
             };
             Message sentMessage = await action;
@@ -57,11 +62,13 @@ namespace SourcesReplyBot.Services
             _logger.LogInformation("Unknown update type: {updateType}", update.Type);
             return Task.CompletedTask;
         }
+
         public Task HandleErrorAsync(Exception exception)
         {
             var ErrorMessage = exception switch
             {
-                ApiRequestException apiRequestException => $"Telegram API Error:\n[{apiRequestException.ErrorCode}]\n{apiRequestException.Message}",
+                ApiRequestException apiRequestException =>
+                    $"Telegram API Error:\n[{apiRequestException.ErrorCode}]\n{apiRequestException.Message}",
                 _ => exception.ToString()
             };
 
